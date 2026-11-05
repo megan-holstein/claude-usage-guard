@@ -3,7 +3,7 @@
 # status-line JSON. Needs only sh and jq. Windows are placed relative to the
 # real clock, so every run is deterministic without faking the time.
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-TMPROOT=$(mktemp -d "${TMPDIR:-/tmp}/usage-guard-test.XXXXXX") || exit 1
+TMPROOT=$(mktemp -d "${TMPDIR:-/tmp}/claude-usage-guard-test.XXXXXX") || exit 1
 trap 'rm -rf "$TMPROOT"' EXIT
 export TZ=UTC
 export USAGE_GUARD_SKIP_LAUNCHCTL=1
@@ -348,14 +348,14 @@ eq "probe_time is stored in the conf" "probe_time=03:30" "$(grep '^probe_time=' 
 sh "$ROOT/install.sh" --plan ultra --probe-time 25:99 > "$TMPROOT/o" 2>&1; rc=$?
 eq "a malformed --probe-time is rejected" 1 "$rc"
 if [ "$(uname -s)" = Darwin ]; then
-  P="$HOME/Library/LaunchAgents/com.github.usage-guard.probe.plist"
+  P="$HOME/Library/LaunchAgents/com.github.claude-usage-guard.probe.plist"
   eq "macOS: LaunchAgent written" "yes" "$([ -f "$P" ] && echo yes || echo no)"
   has "LaunchAgent runs probe.sh from this clone" "$(cat "$P")" "$ROOT/probe.sh"
   has "LaunchAgent hour" "$(cat "$P")" "<key>Hour</key>
     <integer>3</integer>"
   has "LaunchAgent minute" "$(cat "$P")" "<key>Minute</key>
     <integer>30</integer>"
-  has "LaunchAgent label" "$(cat "$P")" "<string>com.github.usage-guard.probe</string>"
+  has "LaunchAgent label" "$(cat "$P")" "<string>com.github.claude-usage-guard.probe</string>"
   has "LaunchAgent error log under ~/.claude" "$(cat "$P")" "$HOME/.claude/usage-guard-probe.err"
   if command -v plutil >/dev/null 2>&1; then
     plutil -lint "$P" > /dev/null 2>&1; eq "LaunchAgent is a valid plist" 0 "$?"
@@ -371,7 +371,7 @@ fi
 new_home
 sh "$ROOT/install.sh" --plan ultra --no-probe > "$TMPROOT/o" 2>&1
 eq "--no-probe stores no probe_time" "" "$(grep '^probe_time=' "$HOME/.claude/usage-guard.conf")"
-eq "--no-probe schedules nothing" "no" "$([ -e "$HOME/Library/LaunchAgents/com.github.usage-guard.probe.plist" ] && echo yes || echo no)"
+eq "--no-probe schedules nothing" "no" "$([ -e "$HOME/Library/LaunchAgents/com.github.claude-usage-guard.probe.plist" ] && echo yes || echo no)"
 new_home
 sh "$ROOT/install.sh" --plan ultra > "$TMPROOT/o" 2>&1
 eq "no reset recorded and no --probe-time: default 00:59" "probe_time=00:59" "$(grep '^probe_time=' "$HOME/.claude/usage-guard.conf")"

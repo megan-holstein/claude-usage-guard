@@ -1,6 +1,6 @@
-# usage-guard
+# claude-usage-guard
 
-usage-guard stops Claude Code from starting new subagents once your subscription usage reaches a limit, while the work already running finishes. On Claude Ultra, it also paces the week in daily budgets, recalculated at the start of each day as the week's remaining usage divided by the days left, and shows how much of today's budget you have used.
+claude-usage-guard stops Claude Code from starting new subagents once your subscription usage reaches a limit, while the work already running finishes. On Claude Ultra, it also paces the week in daily budgets, recalculated at the start of each day as the week's remaining usage divided by the days left, and shows how much of today's budget you have used.
 
 Status: published as-is. Issues and pull requests are welcome. There is no support and no compatibility promise.
 
@@ -14,8 +14,8 @@ Status: published as-is. Issues and pull requests are welcome. There is no suppo
 ## Install
 
 ```sh
-git clone https://github.com/megan-holstein/usage-guard.git
-cd usage-guard
+git clone https://github.com/megan-holstein/claude-usage-guard.git
+cd claude-usage-guard
 ./install.sh --plan max        # or pro, or ultra
 ```
 
@@ -92,7 +92,7 @@ The status line records usage only while a Claude Code session runs. On `ultra`,
 
 - **Cost:** one small Haiku request a day. It counts against your usage by a negligible amount.
 - **Time:** `install.sh` computes the probe time as one minute before the weekly reset's time of day, read from `~/.claude/usage-guard.json` (the status line writes it). Before any session has recorded a reset, pass `--probe-time HH:MM`; without it, the installer uses 00:59 and prints a note. Re-run `./install.sh` after your first session to derive the real time. The time is stored as `probe_time` in the conf, and `probe.sh` reads it from there.
-- **macOS:** `install.sh` writes `~/Library/LaunchAgents/com.github.usage-guard.probe.plist` (a `StartCalendarInterval` job) and loads it with `launchctl bootstrap`. Set `USAGE_GUARD_SKIP_LAUNCHCTL=1` to write it without loading.
+- **macOS:** `install.sh` writes `~/Library/LaunchAgents/com.github.claude-usage-guard.probe.plist` (a `StartCalendarInterval` job) and loads it with `launchctl bootstrap`. Set `USAGE_GUARD_SKIP_LAUNCHCTL=1` to write it without loading.
 - **Linux:** `install.sh` prints a crontab line (`M H * * * /path/to/probe.sh`) for you to add with `crontab -e`.
 - **Sleep and shutdown:** launchd runs a job missed during sleep once the Mac wakes, and skips one missed during a shutdown. A late run sends nothing: a reading taken after the day began includes that day's usage, so the day keeps starting from the last reading before it. cron skips jobs missed while the machine is off or asleep.
 - **Daylight saving time:** the probe time is a local clock time, but the reset is a fixed instant, so a clock change moves the reset's time of day by an hour. When the probe runs on time and finds the day starting at a different time, it sends nothing and logs `skipped: the day now starts at HH:MM` to `~/.claude/usage-guard-probe.log`. Re-run `./install.sh` to derive the new time (the status line has recorded the new reset by then).

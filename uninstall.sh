@@ -45,7 +45,7 @@ if [ -f "$settings" ]; then
   fi
 fi
 
-label=com.github.usage-guard.probe
+label=com.github.claude-usage-guard.probe
 plist="$HOME/Library/LaunchAgents/$label.plist"
 if [ -f "$plist" ]; then
   [ "${USAGE_GUARD_SKIP_LAUNCHCTL:-}" = 1 ] || launchctl bootout "gui/$(id -u)" "$plist" >/dev/null 2>&1

@@ -53,7 +53,7 @@ if [ -n "$plan_arg" ]; then
 fi
 if [ ! -f "$conf" ]; then
   [ -n "$plan_arg" ] || die "pass --plan pro, --plan max or --plan ultra on the first install"
-  printf '# usage-guard configuration; the keys are documented in config.sh and the README.\n' > "$conf"
+  printf '# claude-usage-guard configuration; the keys are documented in config.sh and the README.\n' > "$conf"
   set_conf plan "$plan_arg"
   echo "wrote $conf (plan=$plan_arg)"
 elif [ -n "$plan_arg" ] && [ "$(conf_get plan max)" != "$plan_arg" ]; then
@@ -97,7 +97,7 @@ fi
 [ "$src" = "$settings" ] || rm -f "$src"
 
 # --- the day-start probe (ultra only) ----------------------------------------
-label=com.github.usage-guard.probe
+label=com.github.claude-usage-guard.probe
 plist="$HOME/Library/LaunchAgents/$label.plist"
 os=$(uname -s)
 uid=$(id -u)
