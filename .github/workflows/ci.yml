@@ -1,0 +1,41 @@
+name: check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    # The scripts are POSIX sh and differ between macOS (BSD tools) and Linux
+    # (GNU tools) in stat, date and sed, so the suite runs on both.
+    name: test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: jq is available
+        run: jq --version
+
+      - name: Every script parses
+        run: |
+          for f in *.sh tests/run.sh; do
+            sh -n "$f"
+          done
+
+      - name: The test suite passes
+        run: sh tests/run.sh
+
+  shellcheck:
+    name: shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lint the scripts
+        run: shellcheck -x -s sh *.sh tests/run.sh
