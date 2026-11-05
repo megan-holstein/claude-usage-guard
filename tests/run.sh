@@ -108,6 +108,33 @@ new_home; set_conf plan=max
 guard Agent
 eq "no recorded figure: passes" 0 "$rc"
 
+echo "--- a new session, before its first response (no rate_limits)"
+new_home; set_conf plan=max
+statusline '{"model":{"id":"x"}}'
+eq "max: nothing recorded yet shows ?" "max · 5h ?% · 7d ?%" "$out"
+write_json "$(max_json 12 34)"
+statusline '{"model":{"id":"x"}}'
+eq "max: shows the recorded figure" "max · 5h 12% · 7d 34%" "$out"
+has "...and leaves the recorded figure in place" "$(cat "$HOME/.claude/usage-guard.json")" "rate_limits"
+write_json "$(max_json 95 10)"
+statusline '{"model":{"id":"x"}}'
+guard Agent
+eq "...so the guard still refuses over the limit" 2 "$rc"
+now=$(date +%s)
+write_json "{\"rate_limits\":{\"five_hour\":{\"used_percentage\":99,\"resets_at\":$((now - 10))},\"seven_day\":{\"used_percentage\":5,\"resets_at\":$((now + 9999))}}}"
+statusline '{"model":{"id":"x"}}'
+eq "max: a recorded window that has reset shows ?" "max · 5h ?% · 7d 5%" "$out"
+new_home; set_conf plan=ultra
+ultra_week 4
+statusline '{"model":{"id":"x"}}'
+eq "ultra: nothing recorded yet shows ?" "ultra · 7d ?" "$out"
+printf '%s 1\n' "$DAYSTART" > "$HOME/.claude/usage-guard-day"
+printf '%s 15\n' $((NOW - 600)) > "$HOME/.claude/usage-guard-last"
+write_json "$(ultra_json 15)"
+statusline '{"model":{"id":"x"}}'
+eq "ultra: shows the recorded figure" "ultra · 7d 15% · day 4/7 · today 14% of 25% budget used" "$(plain "$out")"
+eq "...and does not move the last-reading time" "$((NOW - 600)) 15" "$(cat "$HOME/.claude/usage-guard-last")"
+
 echo "--- ultra plan: budget math and display"
 new_home; set_conf plan=ultra
 ultra_week 4

@@ -104,7 +104,7 @@ Skip the probe with `./install.sh --no-probe`. The guard still works; it starts 
 
 - `pro`, `max`: `max · 5h NN% · 7d NN%`, the usage of each window.
 - `ultra`: `ultra · 7d NN% · day N/7 · today NN% of NN% budget used`. `7d` is the week's usage, `day N/7` the day of the window now running, and the last two figures the share of the week used today and today's budget, in percent of the week. On a day with no budget it reads `no budget left today`.
-- Before Claude Code has sent a figure, unknown values show as `?`.
+- Claude Code sends a session no usage figure until its first response, so a new window shows the last figure any session recorded (`~/.claude/usage-guard.json`) from the moment it opens, and keeps that file intact for the guard. Usage elsewhere since then (claude.ai, another device) appears after the first response. A window that has reset since, or a figure never recorded, shows as `?`.
 
 `refreshInterval: 60` makes Claude Code re-run the status line every minute, so the figure stays current while a session sits idle with agents running in the background. Without it, background agents can reach the hard cap before the guard sees 90%.
 
@@ -128,7 +128,7 @@ A hook refuses new subagent launches (the Agent and Workflow tools) once a usage
 - Claude Code reports usage in whole percent, so the guard works at that resolution: a 90% limit trips when the reported figure reads 90.
 - The figure refreshes only while a session runs or the probe fires. Right after a window resets, the saved figure can show the old percentage for up to a minute, until the next refresh.
 - The guard refuses new launches only. It does not stop subagents that are already running, and one of them can still reach the account's hard cap at 100%, which ends it mid-call.
-- The hook reads the figure the status line recorded; with no status line installed, or before the first figure arrives, the guard passes everything.
+- The hook reads the figure the status line recorded; with no status line installed, or before any session has recorded a figure, the guard passes everything.
 - Day boundaries are 24-hour chunks counted from the weekly reset, so across a daylight saving change they shift on the local clock.
 
 ## Development

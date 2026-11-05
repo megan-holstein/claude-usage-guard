@@ -6,12 +6,19 @@
 #             daily limit, each a percentage of the day's budget.
 # On ultra it also records the week's usage when each day begins, and its own
 # latest reading (config.sh).
+# Claude Code sends no rate_limits until a session's first API response, so a
+# new window keeps the figure the last reading recorded (from any session; the
+# windows are account-wide) and shows that instead of `?`. A window that has
+# reset since is ignored, here and in pace.jq.
 input=$(cat)
 f="$HOME/.claude/usage-guard.json"
-printf '%s' "$input" > "$f"
+fresh=0
+if printf '%s' "$input" | jq -e '.rate_limits | type == "object"' >/dev/null 2>&1; then
+  printf '%s' "$input" > "$f" && fresh=1
+fi
 # shellcheck source=config.sh
 . "$(dirname "$0")/config.sh"
-pct() { printf '%s' "$input" | jq -r ".rate_limits.$1.used_percentage // empty | floor" 2>/dev/null; }
+pct() { jq -r --argjson now "$(date +%s)" ".rate_limits.$1 | select((.resets_at // 0) > \$now) | .used_percentage // empty | floor" "$f" 2>/dev/null; }
 if [ "$plan" != ultra ]; then
   h5=$(pct five_hour) d7=$(pct seven_day)
   printf '%s · 5h %s%% · 7d %s%%' "$plan" "${h5:-?}" "${d7:-?}"
@@ -26,7 +33,8 @@ _bd=0; [ -r "$daystate" ] && read -r _bd _ < "$daystate"
 if [ "$_bd" != "$day_start" ]; then
   printf '%s %s\n' "$day_start" "$baseline" > "$daystate.$$" && mv "$daystate.$$" "$daystate"
 fi
-printf '%s %s\n' "$(date +%s)" "$used" > "$lastread.$$" && mv "$lastread.$$" "$lastread"
+# Only a fresh reading moves the last-reading time; a recorded one is already there.
+[ "$fresh" = 1 ] && { printf '%s %s\n' "$(date +%s)" "$used" > "$lastread.$$" && mv "$lastread.$$" "$lastread"; }
 warn=$(conf_get daily_warn 75) stop=$(conf_get daily 90) color=""
 [ "$warn" != off ] && [ "$today" -ge "$warn" ] && color='\033[33m'
 [ "$stop" != off ] && [ "$today" -ge "$stop" ] && color='\033[31m'
