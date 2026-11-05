@@ -1,6 +1,6 @@
 # usage-guard
 
-usage-guard stops Claude Code from starting new subagents once your subscription usage reaches a limit, while the work already running finishes. On Claude Ultra, it also paces the week in daily budgets and shows how much of today's budget you have used.
+usage-guard stops Claude Code from starting new subagents once your subscription usage reaches a limit, while the work already running finishes. On Claude Ultra, it also paces the week in daily budgets, recalculated at the start of each day as the week's remaining usage divided by the days left, and shows how much of today's budget you have used.
 
 Status: published as-is. Issues and pull requests are welcome. There is no support and no compatibility promise.
 
