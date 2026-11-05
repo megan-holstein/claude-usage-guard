@@ -1,14 +1,8 @@
 # usage-guard
 
-usage-guard stops Claude Code from starting new subagents once your subscription usage reaches a limit, while the work already running finishes. On a plan with only a weekly window, it also paces the week in daily budgets and shows how much of today's budget you have used.
+usage-guard stops Claude Code from starting new subagents once your subscription usage reaches a limit, while the work already running finishes. On Claude Ultra, it also paces the week in daily budgets and shows how much of today's budget you have used.
 
 Status: published as-is. Issues and pull requests are welcome. There is no support and no compatibility promise.
-
-## Why
-
-A long agent run (an orchestrator that launches subagents one after another) can hit the account's hard usage cap in the middle of a task. The cap stops everything at once and strands half-finished work. usage-guard draws a softer line earlier: at 90% of a window, the `Agent` and `Workflow` tools, the two that launch subagents, refuse new launches. Every other tool keeps working, so running agents finish, and the orchestrator verifies, commits and lands what exists. The refusal tells the agent to schedule a wakeup for the time the window resets and to retry then.
-
-A plan with only a weekly window has a second problem: nothing stops one heavy day from using the whole week. On that plan usage-guard splits the week into seven 24-hour days, gives each day a budget, and refuses new subagents at 90% of the day's budget.
 
 ## Requirements
 
@@ -30,7 +24,7 @@ cd usage-guard
 - writes `~/.claude/usage-guard.conf` with `plan=<your plan>` (`--plan` is required on the first install);
 - backs up `~/.claude/settings.json` with a timestamp (`settings.json.bak-YYYYMMDD-HHMMSS`), then merges in a `statusLine` entry (`refreshInterval: 60`) and a `PreToolUse` hook with the matcher `Agent|Workflow`, both pointing at scripts in the clone;
 - refuses to replace a different `statusLine` that already exists, unless you pass `--force` (the old one stays in the backup);
-- on the `ultra` plan, schedules the day-start probe (see [The probe](#the-probe)).
+- on Claude Ultra, schedules the day-start probe (see [The probe](#the-probe)).
 
 Options: `--probe-time HH:MM`, `--no-probe`, `--force`. Keep the clone where it is: `settings.json` points at its absolute path. To move it, run `./uninstall.sh` first, move the clone, and install again. Restart Claude Code (or open a new session) after installing.
 
@@ -49,13 +43,13 @@ On Linux, remove the crontab line yourself if you added one.
 
 | Plan | Enforced | Status line |
 |---|---|---|
-| `pro` | the 5-hour window and the weekly window, each at 90% | `pro · 5h 12% · 7d 34%` |
-| `max` | the same | `max · 5h 12% · 7d 34%` |
-| `ultra` | the weekly window at 90%, and the day's budget at 90% | `ultra · 7d 2% · day 4/7 · today 1% of 25% budget used` |
+| Claude Pro (`pro`) | the 5-hour window and the weekly window, each at 90% | `pro · 5h 12% · 7d 34%` |
+| Claude Max (`max`) | the same | `max · 5h 12% · 7d 34%` |
+| Claude Ultra (`ultra`) | the weekly window at 90%, and the day's budget at 90% | `ultra · 7d 2% · day 4/7 · today 1% of 25% budget used` |
 
-`ultra` names a plan with a weekly window and no 5-hour window. Change the plan by editing the `plan=` line.
+Change the plan by editing the `plan=` line.
 
-## The daily budget (ultra)
+## The daily budget (Claude Ultra)
 
 The weekly window is split into seven 24-hour days, counted back from the window's reset time (`rate_limits.seven_day.resets_at`). A day begins at the reset's time of day. A day's budget is set when the day begins:
 
