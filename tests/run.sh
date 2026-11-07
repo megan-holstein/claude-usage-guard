@@ -236,6 +236,39 @@ rm -f "$HOME/.claude/usage-guard-bypass" "$HOME/.claude/usage-guard-bypass.log"
 USAGE_GUARD_BYPASS=1 guard Agent
 eq "USAGE_GUARD_BYPASS=1 lets the launch through" 0 "$rc"
 has "the environment bypass is logged" "$(cat "$HOME/.claude/usage-guard-bypass.log")" "bypassed:"
+unset USAGE_GUARD_BYPASS
+# touch_at <epoch> <file>: sets a file's mtime (TZ is UTC, so local = UTC).
+touch_at() { touch -t "$(date -u -d "@$1" +%Y%m%d%H%M.%S 2>/dev/null || date -u -r "$1" +%Y%m%d%H%M.%S)" "$2"; }
+
+echo "--- bypass for the rest of the day"
+new_home; set_conf plan=max
+write_json "$(max_json 95 10)"
+touch "$HOME/.claude/usage-guard-bypass-today"
+guard Agent
+eq "a rest-of-day flag touched today lets the launch through" 0 "$rc"
+has "the rest-of-day bypass is logged" "$(cat "$HOME/.claude/usage-guard-bypass.log")" "bypassed: five_hour window is at 95%"
+statusline "$(max_json 95 10)"
+eq "max: the status line says the guard is open until midnight" "max · 5h 95% · 7d 10% · guard open until 00:00" "$out"
+now=$(date +%s)
+midnight=$((now - $(date +%H | sed 's/^0//;s/^$/0/') * 3600 - $(date +%M | sed 's/^0//;s/^$/0/') * 60 - $(date +%S | sed 's/^0//;s/^$/0/')))
+touch_at $((midnight - 60)) "$HOME/.claude/usage-guard-bypass-today"
+guard Agent
+eq "max: a rest-of-day flag touched yesterday is ignored" 2 "$rc"
+has "refusal hands over the rest-of-day line too" "$gerr" "! touch ~/.claude/usage-guard-bypass-today"
+statusline "$(max_json 95 10)"
+eq "max: a closed guard adds nothing to the status line" "max · 5h 95% · 7d 10%" "$out"
+new_home; set_conf plan=ultra
+ultra_week 4
+printf '%s 1\n' "$DAYSTART" > "$HOME/.claude/usage-guard-day"
+write_json "$(ultra_json 23.3)"
+touch_at $((DAYSTART - 60)) "$HOME/.claude/usage-guard-bypass-today"
+guard Agent
+eq "ultra: a flag touched before the budget day began is ignored" 2 "$rc"
+touch_at $((DAYSTART + 60)) "$HOME/.claude/usage-guard-bypass-today"
+guard Agent
+eq "ultra: a flag touched during the budget day lets the launch through" 0 "$rc"
+statusline "$(ultra_json 23.3)"
+has "ultra: the status line says the guard is open until the next budget opens" "$(plain "$out")" "· guard open until $(date -u -r $((DAYSTART + 86400)) +%H:%M 2>/dev/null || date -u -d "@$((DAYSTART + 86400))" +%H:%M)"
 
 echo "--- portability helpers"
 new_home

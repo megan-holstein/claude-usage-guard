@@ -57,7 +57,7 @@ fi
 c="$HOME/.claude"
 if [ "$purge" -eq 1 ]; then
   rm -rf "$c/usage-guard.conf" "$c/usage-guard.json" "$c/usage-guard-last" "$c/usage-guard-day" \
-    "$c/usage-guard-bypass" "$c/usage-guard-bypass.log" "$c/usage-guard-probe.log" \
+    "$c/usage-guard-bypass" "$c/usage-guard-bypass-today" "$c/usage-guard-bypass.log" "$c/usage-guard-probe.log" \
     "$c/usage-guard-probe.err" "$c/usage-guard-probe.d"
   echo "purged the conf, state and log files"
 else

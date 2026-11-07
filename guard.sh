@@ -42,20 +42,20 @@ if [ "$plan" = ultra ] && [ -z "$over" ] && [ "$dlim" != off ]; then
   fi
 fi
 [ -n "$over" ] || exit 0
-# Optional bypass: USAGE_GUARD_BYPASS=1 in the environment, or a flag file
-# touched within the last USAGE_GUARD_BYPASS_TTL seconds (default 30 minutes), so
-# a forgotten flag expires. Every bypassed call is logged. Only the user sets
-# the flag; the refusal below hands the agent the command to print for them.
-bypass="$HOME/.claude/usage-guard-bypass"
-ttl=${USAGE_GUARD_BYPASS_TTL:-1800}
-if [ -f "$bypass" ]; then mtime=$(file_mtime "$bypass"); else mtime=0; fi
-if [ "$USAGE_GUARD_BYPASS" = 1 ] ||
-   { [ -f "$bypass" ] && [ $((now - ${mtime:-0})) -lt "$ttl" ]; }; then
+# Optional bypass: USAGE_GUARD_BYPASS=1 in the environment, or a flag file the
+# user touched (config.sh, bypass_ends): usage-guard-bypass for 30 minutes,
+# usage-guard-bypass-today for the rest of the day. Each flag expires on its
+# own, so a forgotten one does not leave the guard open. Every bypassed call is
+# logged. Only the user sets a flag; the refusal below hands the agent the
+# commands to print for them.
+if [ "$USAGE_GUARD_BYPASS" = 1 ] || [ -n "$(bypass_ends)" ]; then
   echo "$(date '+%F %T') bypassed: $over" >> "$HOME/.claude/usage-guard-bypass.log"
   exit 0
 fi
 reset_at=$(fmt_epoch "$over_reset" '%F %T' || echo unknown)
 [ -n "$reset_at" ] || reset_at=unknown
 wait_s=$((over_reset - now)); [ "$wait_s" -gt 0 ] || wait_s=0
-echo "Usage guard: the ${over}; ${opens} at ${reset_at} (in ${wait_s}s). Launch no new subagent and start no new task until then. Everything else still runs: finish, verify, land and record the work already in flight, and resume a stopped subagent (SendMessage) if its task is unfinished. SET A TIMER FOR THE RESET: schedule a wakeup for ${reset_at} (ScheduleWakeup, chaining wakeups of up to 3600s until then, or a one-shot CronCreate), and when it fires retry the refused subagent and go on with the chain. Say where things stand, and end your reply with this line, verbatim, so the user can open the guard sooner if they are at their computer: ! touch ~/.claude/usage-guard-bypass" >&2
+echo "Usage guard: the ${over}; ${opens} at ${reset_at} (in ${wait_s}s). Launch no new subagent and start no new task until then. Everything else still runs: finish, verify, land and record the work already in flight, and resume a stopped subagent (SendMessage) if its task is unfinished. SET A TIMER FOR THE RESET: schedule a wakeup for ${reset_at} (ScheduleWakeup, chaining wakeups of up to 3600s until then, or a one-shot CronCreate), and when it fires retry the refused subagent and go on with the chain. Say where things stand, and end your reply with these two lines, verbatim, so the user can open the guard sooner if they are at their computer, the first for 30 minutes and the second for the rest of the day:
+! touch ~/.claude/usage-guard-bypass
+! touch ~/.claude/usage-guard-bypass-today" >&2
 exit 2

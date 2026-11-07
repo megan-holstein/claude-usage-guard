@@ -82,9 +82,14 @@ Any limit also accepts `off`, which disables that check: `daily=off`. Delete a l
 
 ## Bypass
 
-To work past a limit on purpose, run `touch ~/.claude/usage-guard-bypass` in any terminal, or `! touch ~/.claude/usage-guard-bypass` at the Claude Code prompt (a `!` command runs outside any tool call, so the guard does not block it). The flag works for 30 minutes (`USAGE_GUARD_BYPASS_TTL` seconds, default 1800) and then expires. Launching Claude Code with `USAGE_GUARD_BYPASS=1` bypasses the guard for that session. Each bypassed launch appends a line to `~/.claude/usage-guard-bypass.log`. Delete the flag file to restore the guard.
+To work past a limit on purpose, touch one of two flag files, in any terminal or with a `!` command at the Claude Code prompt (a `!` command runs outside any tool call, so the guard does not block it):
 
-An agent never sets the flag. The refusal message instructs the agent to end its reply with the `! touch` line, so you can run it.
+- `! touch ~/.claude/usage-guard-bypass` opens the guard for 30 minutes (`USAGE_GUARD_BYPASS_TTL` seconds, default 1800).
+- `! touch ~/.claude/usage-guard-bypass-today` opens it for the rest of the day. On `ultra` the day is the budget day, so the flag lasts until the next day's budget opens; on `pro` and `max` it is the local calendar day, and the flag lasts until midnight.
+
+Each flag expires on its own, so a forgotten one does not leave the guard open. While a flag is open, the status line ends with `· guard open until HH:MM`. Launching Claude Code with `USAGE_GUARD_BYPASS=1` bypasses the guard for that session. Each bypassed launch appends a line to `~/.claude/usage-guard-bypass.log`. Delete the flag files to restore the guard.
+
+An agent never sets a flag. The refusal message instructs the agent to end its reply with both `! touch` lines, so you can run the one you want.
 
 ## The probe
 
@@ -119,7 +124,9 @@ A hook refuses new subagent launches (the Agent and Workflow tools) once a usage
 
 - Launch no new subagent and start no new task. Finish, verify, commit and push the work already in flight; resume a stopped subagent with SendMessage if its task is unfinished.
 - Schedule a wakeup for the reset time the refusal names (ScheduleWakeup in steps of up to an hour, or a one-shot cron job), and retry the refused launch when it fires.
-- Never create `~/.claude/usage-guard-bypass` yourself. Say where things stand, and end your reply with this line, verbatim, so the user can open the guard sooner: `! touch ~/.claude/usage-guard-bypass`
+- Never create a bypass flag yourself. Say where things stand, and end your reply with these two lines, verbatim, so the user can open the guard sooner, for 30 minutes or for the rest of the day:
+  `! touch ~/.claude/usage-guard-bypass`
+  `! touch ~/.claude/usage-guard-bypass-today`
 - Tell each subagent to commit and push at every checkpoint, so a task that hits the hard cap stays resumable.
 ```
 
@@ -130,6 +137,7 @@ A hook refuses new subagent launches (the Agent and Workflow tools) once a usage
 - The guard refuses new launches only. It does not stop subagents that are already running, and one of them can still reach the account's hard cap at 100%, which ends it mid-call.
 - The hook reads the figure the status line recorded; with no status line installed, or before any session has recorded a figure, the guard passes everything.
 - Day boundaries are 24-hour chunks counted from the weekly reset, so across a daylight saving change they shift on the local clock.
+- On `pro` and `max`, on the day of a daylight saving change the status line's `guard open until` time is off by an hour; the rest-of-day flag itself still expires at midnight.
 
 ## Development
 

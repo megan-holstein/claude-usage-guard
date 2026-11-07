@@ -6,6 +6,7 @@
 #             daily limit, each a percentage of the day's budget.
 # On ultra it also records the week's usage when each day begins, and its own
 # latest reading (config.sh).
+# While the user's bypass is open it appends `· guard open until HH:MM`.
 # Claude Code sends no rate_limits until a session's first API response, so a
 # new window keeps the figure the last reading recorded (from any session; the
 # windows are account-wide) and shows that instead of `?`. A window that has
@@ -18,14 +19,16 @@ if printf '%s' "$input" | jq -e '.rate_limits | type == "object"' >/dev/null 2>&
 fi
 # shellcheck source=config.sh
 . "$(dirname "$0")/config.sh"
+# open_note: the bypass suffix, or nothing while the guard is closed.
+open_note() { _b=$(bypass_ends); [ -n "$_b" ] && printf ' · guard open until %s' "$(fmt_epoch "$_b" %H:%M)"; return 0; }
 pct() { jq -r --argjson now "$(date +%s)" ".rate_limits.$1 | select((.resets_at // 0) > \$now) | .used_percentage // empty | floor" "$f" 2>/dev/null; }
 if [ "$plan" != ultra ]; then
   h5=$(pct five_hour) d7=$(pct seven_day)
-  printf '%s · 5h %s%% · 7d %s%%' "$plan" "${h5:-?}" "${d7:-?}"
+  printf '%s · 5h %s%% · 7d %s%%%s' "$plan" "${h5:-?}" "${d7:-?}" "$(open_note)"
   exit 0
 fi
 p=$(pace "$f" '"\(.day_start) \(.used) \(.day) \(.today|floor) \(.budget|round) \(.spent|round) \(.baseline)"')
-[ -n "$p" ] || { printf 'ultra · 7d ?'; exit 0; }
+[ -n "$p" ] || { printf 'ultra · 7d ?%s' "$(open_note)"; exit 0; }
 # shellcheck disable=SC2086  # split the space-separated fields on purpose
 set -- $p
 day_start=$1 used=$2 day=$3 today=$4 budget=$5 spent=$6 baseline=$7
@@ -42,4 +45,5 @@ if [ "$budget" -gt 0 ]; then msg="today ${spent}% of ${budget}% budget used"; el
 # shellcheck disable=SC2059  # $color holds an escape sequence the format must interpret
 printf "ultra · 7d %s%% · day %s/7 · ${color}%s" "${used%.*}" "$day" "$msg"
 [ -n "$color" ] && printf '\033[0m'
+printf '%s' "$(open_note)"
 exit 0
