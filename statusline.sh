@@ -3,7 +3,9 @@
 #   pro, max: `max · 5h NN% · 7d NN%`
 #   ultra:    `ultra · 7d NN% · day N/7 · today NN% of NN% budget used`, both
 #             in percent of the week; yellow at daily_warn and red at the
-#             daily limit, each a percentage of the day's budget.
+#             daily limit or at 100% (over budget), whichever comes first,
+#             each a percentage of the day's budget. With daily=off the red
+#             still shows at 100%.
 # On ultra it also records the week's usage when each day begins, and its own
 # latest reading (config.sh).
 # While the user's bypass is open it appends `· guard open until HH:MM`.
@@ -38,9 +40,11 @@ if [ "$_bd" != "$day_start" ]; then
 fi
 # Only a fresh reading moves the last-reading time; a recorded one is already there.
 [ "$fresh" = 1 ] && { printf '%s %s\n' "$(date +%s)" "$used" > "$lastread.$$" && mv "$lastread.$$" "$lastread"; }
-warn=$(conf_get daily_warn 75) stop=$(conf_get daily 90) color=""
+warn=$(conf_get daily_warn 75) red=$(conf_get daily 90) color=""
+# Red marks an over-budget day even when the daily guard is off or set above 100.
+{ [ "$red" = off ] || [ "$red" -gt 100 ]; } && red=100
 [ "$warn" != off ] && [ "$today" -ge "$warn" ] && color='\033[33m'
-[ "$stop" != off ] && [ "$today" -ge "$stop" ] && color='\033[31m'
+[ "$today" -ge "$red" ] && color='\033[31m'
 if [ "$budget" -gt 0 ]; then msg="today ${spent}% of ${budget}% budget used"; else msg="no budget left today"; fi
 # shellcheck disable=SC2059  # $color holds an escape sequence the format must interpret
 printf "ultra · 7d %s%% · day %s/7 · ${color}%s" "${used%.*}" "$day" "$msg"

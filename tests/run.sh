@@ -152,6 +152,14 @@ has "90% of the budget: red" "$out" "${ESC}[31m"
 set_conf plan=ultra daily_warn=off
 statusline "$(ultra_json 20)"
 lacks "daily_warn=off: no yellow" "$out" "${ESC}[33m"
+set_conf plan=ultra daily=off
+statusline "$(ultra_json 24)"
+lacks "daily=off, under budget: not red" "$out" "${ESC}[31m"
+statusline "$(ultra_json 26)"
+has "daily=off, over budget: red" "$out" "${ESC}[31m"
+set_conf plan=ultra daily=120
+statusline "$(ultra_json 26)"
+has "daily above 100, over budget: red" "$out" "${ESC}[31m"
 set_conf plan=ultra
 
 echo "--- ultra plan: the guard"

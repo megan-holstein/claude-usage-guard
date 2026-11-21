@@ -61,7 +61,7 @@ Worked example: day 4 of 7 begins with 1% of the week used. Four days remain, co
 
 Usage during a day counts against that day only. A light day raises the budget of every day after it, and a heavy day lowers it. A day that begins with the weekly window used up has no budget, and the guard refuses until the next day opens.
 
-The status line turns yellow at 75% of the day's budget (`daily_warn`) and red at the guard's limit (`daily`).
+The status line turns yellow at 75% of the day's budget (`daily_warn`) and red at the guard's limit (`daily`) or once the day is over budget (100%), whichever comes first; with `daily=off` the guard halts nothing but the status line still turns red over budget.
 
 The day's starting figure is the last status-line reading taken before the day began (kept in `~/.claude/usage-guard-last`), recorded in `~/.claude/usage-guard-day` the first time the status line runs in the new day. Usage between that last reading and the day's start (on claude.ai, for example) counts toward the new day, which errs toward stopping early. A last reading from a previous weekly window is ignored; the day then starts from the current figure.
 
