@@ -1,14 +1,15 @@
 #!/bin/sh
 # Installs usage-guard from this clone: writes ~/.claude/usage-guard.conf,
 # merges the status line and the PreToolUse hook into ~/.claude/settings.json
-# (after a timestamped backup), and on the ultra plan schedules the day-start
+# (after a timestamped backup), and on the ultra or auto plan schedules the day-start
 # probe. Safe to run again. Everything lives under $HOME, so a test can point
 # HOME at a scratch directory.
 usage() {
   cat <<'USAGE'
-Usage: install.sh [--plan pro|max|ultra] [--probe-time HH:MM] [--no-probe] [--force]
+Usage: install.sh [--plan auto|pro|max|ultra] [--probe-time HH:MM] [--no-probe] [--force]
 
-  --plan         your plan; required the first time (written to ~/.claude/usage-guard.conf)
+  --plan         your plan (written to ~/.claude/usage-guard.conf); auto, the default,
+                 reads it from the Claude Code login each time the status line runs
   --probe-time   local time the ultra plan's day-start probe runs; by default derived
                  from the weekly reset recorded in ~/.claude/usage-guard.json, else 00:59
   --no-probe     do not schedule the probe
@@ -49,18 +50,19 @@ set_conf() {
 
 # --- the conf file -----------------------------------------------------------
 if [ -n "$plan_arg" ]; then
-  case "$plan_arg" in pro|max|ultra) ;; *) die "--plan must be pro, max or ultra" ;; esac
+  case "$plan_arg" in auto|pro|max|ultra) ;; *) die "--plan must be auto, pro, max or ultra" ;; esac
 fi
 if [ ! -f "$conf" ]; then
-  [ -n "$plan_arg" ] || die "pass --plan pro, --plan max or --plan ultra on the first install"
+  plan_arg=${plan_arg:-auto}
   printf '# claude-usage-guard configuration; the keys are documented in config.sh and the README.\n' > "$conf"
   set_conf plan "$plan_arg"
   echo "wrote $conf (plan=$plan_arg)"
-elif [ -n "$plan_arg" ] && [ "$(conf_get plan max)" != "$plan_arg" ]; then
+elif [ -n "$plan_arg" ] && [ "$(conf_get plan auto)" != "$plan_arg" ]; then
   set_conf plan "$plan_arg"
   echo "set plan=$plan_arg in $conf"
 fi
-plan=$(conf_get plan max)
+plan_conf=$(conf_get plan auto) plan=$plan_conf
+[ "$plan" = auto ] && plan=$(detect_plan)
 
 # --- settings.json -----------------------------------------------------------
 settings="$HOME/.claude/settings.json"
@@ -96,16 +98,17 @@ else
 fi
 [ "$src" = "$settings" ] || rm -f "$src"
 
-# --- the day-start probe (ultra only) ----------------------------------------
+# --- the day-start probe (ultra, and auto in case the login turns ultra) -----
+# probe.sh resolves the plan when it runs and does nothing off ultra.
 label=com.github.claude-usage-guard.probe
 plist="$HOME/Library/LaunchAgents/$label.plist"
 os=$(uname -s)
 uid=$(id -u)
 unload() { [ "${USAGE_GUARD_SKIP_LAUNCHCTL:-}" = 1 ] || launchctl bootout "gui/$uid" "$plist" >/dev/null 2>&1; }
 
-if [ "$plan" != ultra ] || [ "$no_probe" -eq 1 ]; then
+if { [ "$plan_conf" != auto ] && [ "$plan" != ultra ]; } || [ "$no_probe" -eq 1 ]; then
   if [ -f "$plist" ]; then unload; rm -f "$plist"; echo "removed the probe's LaunchAgent"; fi
-  [ "$plan" = ultra ] && echo "probe skipped (--no-probe): the daily budget starts from the last status-line reading before each day"
+  { [ "$plan_conf" = auto ] || [ "$plan" = ultra ]; } && echo "probe skipped (--no-probe): the daily budget starts from the last status-line reading before each day"
   echo "done."
   exit 0
 fi

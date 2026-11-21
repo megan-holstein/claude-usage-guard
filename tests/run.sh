@@ -70,7 +70,39 @@ statusline "$(max_json 12 34)"
 eq "pro status line" "pro · 5h 12% · 7d 34%" "$out"
 new_home
 statusline "$(max_json 12 34)"
-eq "plan defaults to max" "max · 5h 12% · 7d 34%" "$out"
+eq "logged out, no account record: max" "max · 5h 12% · 7d 34%" "$out"
+
+echo "--- plan=auto: the plan follows the login"
+# login <organizationType> <organizationRateLimitTier>: writes the account record.
+login() { printf '{"oauthAccount":{"organizationType":"%s","organizationRateLimitTier":"%s"}}' "$1" "$2" > "$HOME/.claude.json"; }
+new_home
+login claude_pro default_claude_ai
+statusline "$(max_json 12 34)"
+eq "no plan line: a Pro login shows pro" "pro · 5h 12% · 7d 34%" "$out"
+set_conf plan=auto
+login claude_max default_claude_max_5x
+statusline "$(max_json 12 34)"
+eq "plan=auto: a Max login shows max" "max · 5h 12% · 7d 34%" "$out"
+ultra_week 4
+login claude_max default_claude_max_20x
+statusline "$(ultra_json 20)"
+has "plan=auto: a Max 20x login shows the ultra line" "$(plain "$out")" "ultra · 7d 20% · day 4/7"
+login claude_ultra default_claude_ultra
+statusline "$(ultra_json 20)"
+has "plan=auto: an Ultra login shows the ultra line" "$(plain "$out")" "ultra · 7d 20%"
+login claude_pro default_claude_ai
+statusline "$(max_json 12 34)"
+eq "logging out of Ultra and in to Pro switches the line" "pro · 5h 12% · 7d 34%" "$out"
+write_json "$(max_json 95 10)"
+guard Agent
+eq "plan=auto on Pro enforces the 5-hour window" 2 "$rc"
+printf '{"oauthAccount":null}' > "$HOME/.claude.json"
+statusline "$(max_json 12 34)"
+eq "logged out: max" "max · 5h 12% · 7d 34%" "$out"
+set_conf plan=ultra
+login claude_pro default_claude_ai
+statusline "$(ultra_json 20)"
+has "a pinned plan outranks the login" "$(plain "$out")" "ultra · 7d 20%"
 new_home; set_conf plan=max
 write_json "$(max_json 91 10)"
 guard Agent
@@ -335,8 +367,9 @@ eq "non-ultra plan: probe does nothing" 0 "$rc"
 echo "--- install.sh and uninstall.sh"
 new_home
 sh "$ROOT/install.sh" --no-probe > "$TMPROOT/o" 2>&1; rc=$?
-eq "first install without --plan fails" 1 "$rc"
-has "...and says to pass --plan" "$(cat "$TMPROOT/o")" "--plan"
+eq "first install without --plan succeeds" 0 "$rc"
+eq "...and writes plan=auto" "plan=auto" "$(grep '^plan=' "$HOME/.claude/usage-guard.conf")"
+rm -f "$HOME/.claude/settings.json" "$HOME"/.claude/settings.json.bak-*
 sh "$ROOT/install.sh" --plan turbo > "$TMPROOT/o" 2>&1; rc=$?
 eq "an unknown plan is rejected" 1 "$rc"
 S="$HOME/.claude/settings.json"
@@ -440,6 +473,14 @@ new_home
 sh "$ROOT/install.sh" --plan ultra --no-probe > "$TMPROOT/o" 2>&1
 eq "--no-probe stores no probe_time" "" "$(grep '^probe_time=' "$HOME/.claude/usage-guard.conf")"
 eq "--no-probe schedules nothing" "no" "$([ -e "$HOME/Library/LaunchAgents/com.github.claude-usage-guard.probe.plist" ] && echo yes || echo no)"
+new_home
+printf '{"oauthAccount":{"organizationType":"claude_pro"}}' > "$HOME/.claude.json"
+sh "$ROOT/install.sh" --plan auto > "$TMPROOT/o" 2>&1
+eq "plan=auto on a Pro login still stores a probe_time" "probe_time=00:59" "$(grep '^probe_time=' "$HOME/.claude/usage-guard.conf")"
+new_home
+printf '{"oauthAccount":{"organizationType":"claude_pro"}}' > "$HOME/.claude.json"
+sh "$ROOT/install.sh" --plan pro > "$TMPROOT/o" 2>&1
+eq "plan=pro stores no probe_time" "" "$(grep '^probe_time=' "$HOME/.claude/usage-guard.conf")"
 new_home
 sh "$ROOT/install.sh" --plan ultra > "$TMPROOT/o" 2>&1
 eq "no reset recorded and no --probe-time: default 00:59" "probe_time=00:59" "$(grep '^probe_time=' "$HOME/.claude/usage-guard.conf")"

@@ -16,15 +16,15 @@ Status: published as-is. Issues and pull requests are welcome. There is no suppo
 ```sh
 git clone https://github.com/megan-holstein/claude-usage-guard.git
 cd claude-usage-guard
-./install.sh --plan max        # or pro, or ultra
+./install.sh                   # plan=auto: follows your login; or --plan pro, max or ultra
 ```
 
 `install.sh` is safe to run again. It:
 
-- writes `~/.claude/usage-guard.conf` with `plan=<your plan>` (`--plan` is required on the first install);
+- writes `~/.claude/usage-guard.conf` with `plan=auto`, or the plan you pass with `--plan`;
 - backs up `~/.claude/settings.json` with a timestamp (`settings.json.bak-YYYYMMDD-HHMMSS`), then merges in a `statusLine` entry (`refreshInterval: 60`) and a `PreToolUse` hook with the matcher `Agent|Workflow`, both pointing at scripts in the clone;
 - refuses to replace a different `statusLine` that already exists, unless you pass `--force` (the old one stays in the backup);
-- on Claude Ultra, schedules the day-start probe (see [The probe](#the-probe)).
+- on Claude Ultra or `plan=auto`, schedules the day-start probe (see [The probe](#the-probe)); the probe does nothing while the login is not Ultra.
 
 Options: `--probe-time HH:MM`, `--no-probe`, `--force`. Keep the clone where it is: `settings.json` points at its absolute path. To move it, run `./uninstall.sh` first, move the clone, and install again. Restart Claude Code (or open a new session) after installing.
 
@@ -39,7 +39,7 @@ On Linux, remove the crontab line yourself if you added one.
 
 ## The plans
 
-`~/.claude/usage-guard.conf` holds `plan=pro`, `plan=max` or `plan=ultra`. The default is `max`.
+`~/.claude/usage-guard.conf` holds `plan=auto`, `plan=pro`, `plan=max` or `plan=ultra`. The default is `auto`.
 
 | Plan | Enforced | Status line |
 |---|---|---|
@@ -47,7 +47,7 @@ On Linux, remove the crontab line yourself if you added one.
 | Claude Max (`max`) | the same | `max · 5h 12% · 7d 34%` |
 | Claude Ultra (`ultra`) | the weekly window at 90%, and the day's budget at 90% | `ultra · 7d 2% · day 4/7 · today 1% of 25% budget used` |
 
-Change the plan by editing the `plan=` line.
+With `plan=auto` the guard reads the plan from the account record Claude Code keeps in `~/.claude.json` (`oauthAccount.organizationType` and `organizationRateLimitTier`), every time the status line or the hook runs. A login rewrites that record, so after you log out and in to an account on another plan, the next status-line refresh shows that plan's line and the guard enforces its windows. `claude_pro` reads as Pro, `claude_max` as Max, and `claude_ultra`, or `claude_max` with a rate-limit tier ending in `_20x`, as Ultra (an Ultra login has been seen reporting that pair). Logged out, or with a type it does not recognize, the guard falls back to Max. If the guess is wrong for your account, pin the plan by setting `plan=pro`, `plan=max` or `plan=ultra`, which outranks the login.
 
 ## The daily budget (Claude Ultra)
 
@@ -71,7 +71,7 @@ Keys in `~/.claude/usage-guard.conf`, one `key=value` per line, `#` starts a com
 
 | Key | Default | Meaning |
 |---|---|---|
-| `plan` | `max` | `pro`, `max` or `ultra` |
+| `plan` | `auto` | `auto`, `pro`, `max` or `ultra` |
 | `five_hour` | `90` | percent of the 5-hour window at which launches are refused (`pro`, `max`) |
 | `seven_day` | `90` | percent of the weekly window (every plan) |
 | `daily` | `90` | percent of the day's budget (`ultra`) |

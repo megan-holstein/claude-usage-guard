@@ -1,7 +1,8 @@
 # shellcheck shell=sh
 # Sourced by guard.sh, statusline.sh, probe.sh and install.sh. Reads
 # ~/.claude/usage-guard.conf, one `key=value` per line (`#` starts a comment):
-#   plan=pro | max | ultra   which windows the guard enforces (default max)
+#   plan=auto | pro | max | ultra   which windows the guard enforces; auto
+#                            (the default) reads the plan from the login
 #                            pro, max: the 5-hour window and the weekly window
 #                            ultra:    the weekly window and the daily budget
 #   five_hour=90             percent of the 5-hour window (pro, max)
@@ -20,7 +21,26 @@ conf_get() {
   [ -r "$conf" ] && _v=$(sed -nE "s/^[[:space:]]*$1[[:space:]]*=[[:space:]]*([A-Za-z0-9:]+)[[:space:]]*(#.*)?$/\1/p" "$conf" | tail -1)
   echo "${_v:-$2}"
 }
-plan=$(conf_get plan max)
+# detect_plan: the plan of the account Claude Code is logged in to, read from
+# the account record it keeps in ~/.claude.json (oauthAccount), which a login
+# rewrites, so a logout and login to another plan changes the result on the
+# next status-line refresh. An Ultra login has been seen to report
+# organizationType claude_max with a rate-limit tier ending in _20x, so that
+# pair reads as ultra. Prints max when nobody is logged in or the type is
+# unknown; pin the plan in the conf if the guess is wrong.
+account="${USAGE_GUARD_ACCOUNT:-$HOME/.claude.json}"
+detect_plan() {
+  _t=$(jq -r '.oauthAccount // {} | "\(.organizationType // "") \(.organizationRateLimitTier // "")"' "$account" 2>/dev/null)
+  case "$_t" in
+    claude_ultra*|claude_max*_20x) echo ultra ;;
+    claude_max*) echo max ;;
+    claude_pro*) echo pro ;;
+    *) echo max ;;
+  esac
+}
+# plan=auto (the default) follows the login; pro, max or ultra pins the plan.
+plan=$(conf_get plan auto)
+[ "$plan" = auto ] && plan=$(detect_plan)
 # The day's budget is fixed from the week's usage when the day began, recorded
 # by statusline.sh as `<day start epoch> <percent used>`; the status line also
 # keeps its latest reading as `<epoch> <percent used>`.
