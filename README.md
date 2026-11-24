@@ -110,6 +110,7 @@ Skip the probe with `./install.sh --no-probe`. The guard still works; it starts 
 - `pro`, `max`: `max · 5h NN% · 7d NN%`, the usage of each window.
 - `ultra`: `ultra · 7d NN% · day N/7 · today NN% of NN% budget used`. `7d` is the week's usage, `day N/7` the day of the window now running, and the last two figures the share of the week used today and today's budget, in percent of the week. On a day with no budget it reads `no budget left today`.
 - Claude Code sends a session no usage figure until its first response, so a new window shows the last figure any session recorded (`~/.claude/usage-guard.json`) from the moment it opens, and keeps that file intact for the guard. Usage elsewhere since then (claude.ai, another device) appears after the first response. A window that has reset since, or a figure never recorded, shows as `?`.
+- On every refresh it also records the session's context-window reading (`context_window.used_percentage`, `context_window_size`, `total_input_tokens` and the time) in `~/.cache/claude-context/<session_id>.json`, one line of JSON. Claude Code gives that figure to the status line alone, so a hook that tells a session how full its window is reads it there. `CONTEXT_GAUGE_DIR` names another folder; the status line prints the same whether or not the write succeeds.
 
 `refreshInterval: 60` makes Claude Code re-run the status line every minute, so the figure stays current while a session sits idle with agents running in the background. Without it, background agents can reach the hard cap before the guard sees 90%.
 

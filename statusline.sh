@@ -14,6 +14,27 @@
 # windows are account-wide) and shows that instead of `?`. A window that has
 # reset since is ignored, here and in pace.jq.
 input=$(cat)
+# record_context: writes this session's context-window reading to
+# ~/.cache/claude-context/<session_id>.json (CONTEXT_GAUGE_DIR overrides the
+# folder), one line of JSON, for hooks that tell the session how full its
+# window is. Claude Code gives that figure to the status line alone. A failure
+# here never reaches the status line.
+record_context() {
+  _dir=${CONTEXT_GAUGE_DIR:-$HOME/.cache/claude-context}
+  _r=$(printf '%s' "$input" | jq -r '
+    select((.session_id | type) == "string" and (.session_id | test("^[A-Za-z0-9_-]+$")))
+    | .session_id,
+      ({used_percentage: .context_window.used_percentage,
+        context_window_size: .context_window.context_window_size,
+        total_input_tokens: .context_window.total_input_tokens,
+        at: (now | floor)} | tojson)') || return 0
+  _sid=${_r%%"
+"*} _json=${_r#*"
+"}
+  [ -n "$_sid" ] && [ "$_sid" != "$_json" ] || return 0
+  mkdir -p "$_dir" && printf '%s\n' "$_json" > "$_dir/$_sid.json.$$" && mv "$_dir/$_sid.json.$$" "$_dir/$_sid.json"
+}
+( record_context ) >/dev/null 2>&1 || true
 f="$HOME/.claude/usage-guard.json"
 fresh=0
 if printf '%s' "$input" | jq -e '.rate_limits | type == "object"' >/dev/null 2>&1; then
